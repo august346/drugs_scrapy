@@ -16,7 +16,10 @@ class DrugsPipeline:
     storage_dir = 'drugs/src/oz/results'
 
     def process_item(self, item, spider):
-        filename = '{}.json'.format(item.get('id'))
-        filepath = os.path.join(self.storage_dir, filename)
-        utils.save_json(filepath, item)
-        return item
+        name = '{}_{}'.format(spider.name, spider.get_item_id(item))
+        filepath = os.path.join(self.storage_dir, '{}.json'.format(name))
+
+        transformed_item = spider.transformer(item).get_transformed_item()
+
+        utils.save_json(filepath, transformed_item)
+        return name
