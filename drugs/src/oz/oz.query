@@ -1,0 +1,55 @@
+query productDetail($page: Int, $pageSize: Int) {
+    productDetail: productsElastic(pageSize: $pageSize, currentPage: $page) {
+        items {
+            id
+            name
+            sku
+            breadcrumbs
+            active
+            lekarstv_formy_rig {label}
+            manufacturer_ru {label}
+            manufacturer_id {label option_id}
+            manufacturer {label}
+            media_gallery {url_image url_thumbnail url_small_image}
+            promo_label
+            promo_label_ext {name color url}
+            orig_preparat {label}
+            mnn_ru
+            meta_title
+            meta_keyword
+            instrukciya_rig
+            meta_description
+            is_in_stock
+            rec_need
+            delivery
+            delivery_status
+            termolabil_preparat
+            thermolabile
+            manufactures_url
+            brands_url
+            lekforms_url
+            ingridients_url
+            orig_preparat {label}
+            specification_set_attributes {
+                attribute_label values {value url_key}
+                glossary_term {title short_description description url_key }
+            }
+            description_set_attributes {
+                attribute_label values {
+                    value
+                    url_key
+                }
+                glossary_term {
+                    title
+                    short_description
+                    description
+                    url_key
+                }
+            }
+            price {
+                oldPrice {amount {value}}
+                regularPrice {amount {value currency}}
+            }
+        }
+    }
+}
