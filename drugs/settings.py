@@ -86,3 +86,10 @@ ITEM_PIPELINES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+PG_DRIVER = 'postgresql'
+PG_USERNAME = 'postgres'
+PG_PASSWORD = 'postgres'
+PG_HOST = '192.168.1.11'
+PG_PORT = 6432
+PG_DB_NAME = 'pharmacy'

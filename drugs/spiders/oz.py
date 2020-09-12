@@ -3,7 +3,8 @@ from functools import reduce
 
 import scrapy
 
-from drugs import utils, base_transformer
+from drugs.db import models
+from drugs.utils import base_transformer, utils
 
 REQUEST_QUERY_FP = 'drugs/src/oz/oz.query'
 SRC_URL_MASKED = '68747470733a2f2f7777772e7269676c612e72752f6772617068716c'
@@ -100,8 +101,9 @@ class OzTransformer(base_transformer.Transformer):
 class OzSpider(scrapy.Spider):
     name = 'oz'
     transformer = OzTransformer
+    db_model = models.OzDrug
 
-    download_delay = 0.3
+    download_delay = 0.5
 
     def __init__(self, page_size=20, page_limit=626, *args, **kwargs):
         super(OzSpider, self).__init__(*args, **kwargs)
@@ -128,6 +130,7 @@ class OzSpider(scrapy.Spider):
             yield scrapy.http.JsonRequest(
                 url=self.url,
                 data=self.request_json(page_num),
+                cb_kwargs ={'page': page_num},
                 callback=self.parse
             )
 
@@ -142,9 +145,36 @@ class OzSpider(scrapy.Spider):
 
     def parse(self, response, **kwargs):
         rsp_json = response.json()
-        rs = rsp_json.get('data', {}).get('productDetail', {}).get('items', [])
-        yield from rs
+        batch = rsp_json.get('data', {}).get('productDetail', {})
+        batch.update(response.cb_kwargs)
+        return batch
 
     @staticmethod
     def get_item_id(item):
         return item.get('id')
+
+    def save(self, session, batch):
+        items = batch['items']
+        items_ids = tuple(self.get_item_id(i) for i in items)
+
+        in_table_already_ids = tuple(
+            oz_drug.id for oz_drug
+            in (
+                session.query(self.db_model)
+                .filter(self.db_model.id.in_(items_ids))
+                .all()
+            )
+        )
+        session.bulk_save_objects(
+            models.OzDrug(id=id_, data=item)
+            for item in batch['items']
+            if (id_ := self.get_item_id(item)) not in in_table_already_ids
+        )
+        session.commit()
+
+        return 'page: {}/{}\tadded: {}/{}'.format(
+            batch['page'],
+            self.page_limit - 1,
+            self.page_size - len(in_table_already_ids),
+            self.page_size
+        )
