@@ -2,6 +2,7 @@ import json
 from functools import reduce
 
 import scrapy
+from scrapy.exceptions import CloseSpider
 
 from drugs.db import models
 from drugs.utils import base_transformer, utils
@@ -105,10 +106,10 @@ class OzSpider(scrapy.Spider):
 
     download_delay = 0.5
 
-    def __init__(self, page_size=20, page_limit=626, *args, **kwargs):
+    def __init__(self, page_size=20, *args, **kwargs):
         super(OzSpider, self).__init__(*args, **kwargs)
         self.page_size = int(page_size)
-        self.page_limit = int(page_limit)
+        self.page_limit = 1000
 
         self._url = None
         self._query_template = None
@@ -130,7 +131,7 @@ class OzSpider(scrapy.Spider):
             yield scrapy.http.JsonRequest(
                 url=self.url,
                 data=self.request_json(page_num),
-                cb_kwargs ={'page': page_num},
+                cb_kwargs={'page': page_num},
                 callback=self.parse
             )
 
@@ -145,7 +146,7 @@ class OzSpider(scrapy.Spider):
 
     def parse(self, response, **kwargs):
         rsp_json = response.json()
-        batch = rsp_json.get('data', {}).get('productDetail', {})
+        batch = rsp_json['data']['productDetail']
         batch.update(response.cb_kwargs)
         return batch
 
@@ -155,6 +156,10 @@ class OzSpider(scrapy.Spider):
 
     def save(self, session, batch):
         items = batch['items']
+
+        if len(items) == 0:
+            raise CloseSpider('End of OZ list')
+
         items_ids = tuple(self.get_item_id(i) for i in items)
 
         in_table_already_ids = tuple(
@@ -172,9 +177,8 @@ class OzSpider(scrapy.Spider):
         )
         session.commit()
 
-        return 'page: {}/{}\tadded: {}/{}'.format(
+        return 'page: {}\tadded: {}/{}'.format(
             batch['page'],
-            self.page_limit - 1,
             self.page_size - len(in_table_already_ids),
             self.page_size
         )
