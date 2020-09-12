@@ -2,7 +2,6 @@ import json
 from functools import reduce
 
 import scrapy
-from scrapy.exceptions import CloseSpider
 
 from drugs.db import models
 from drugs.utils import base_transformer, utils
@@ -106,10 +105,10 @@ class OzSpider(scrapy.Spider):
 
     download_delay = 0.5
 
-    def __init__(self, page_size=20, *args, **kwargs):
+    def __init__(self, page_size=20, page_limit=655, *args, **kwargs):
         super(OzSpider, self).__init__(*args, **kwargs)
         self.page_size = int(page_size)
-        self.page_limit = 1000
+        self.page_limit = page_limit
 
         self._url = None
         self._query_template = None
@@ -156,13 +155,14 @@ class OzSpider(scrapy.Spider):
 
     def save(self, session, batch):
         items = batch['items']
+        ignore_ids = self.get_ignore_ids(items, session)
+        self.add_items(items, ignore_ids, session)
 
-        if len(items) == 0:
-            raise CloseSpider('End of OZ list')
+        return self.get_save_result(batch['page'], ignore_ids)
 
+    def get_ignore_ids(self, items, session):
         items_ids = tuple(self.get_item_id(i) for i in items)
-
-        in_table_already_ids = tuple(
+        return tuple(
             oz_drug.id for oz_drug
             in (
                 session.query(self.db_model)
@@ -170,15 +170,19 @@ class OzSpider(scrapy.Spider):
                 .all()
             )
         )
-        session.bulk_save_objects(
+
+    def add_items(self, items, ignore_ids, session):
+        session.add_all(
             models.OzDrug(id=id_, data=item)
-            for item in batch['items']
-            if (id_ := self.get_item_id(item)) not in in_table_already_ids
+            for item in items
+            if (id_ := self.get_item_id(item)) not in ignore_ids
         )
         session.commit()
 
-        return 'page: {}\tadded: {}/{}'.format(
-            batch['page'],
-            self.page_size - len(in_table_already_ids),
+    def get_save_result(self, page_num, ignore_ids):
+        return 'page: {}/{}\tadded: {}/{}'.format(
+            page_num,
+            self.page_limit - 1,
+            self.page_size - len(ignore_ids),
             self.page_size
         )

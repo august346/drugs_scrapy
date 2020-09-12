@@ -13,7 +13,7 @@ class SQLAlchemy:
     @property
     def engine(self):
         if self._engine is None:
-            self._engine = create_engine(self.url)
+            self._engine = create_engine(self.url, client_encoding='utf8')
         return self._engine
 
     @property
