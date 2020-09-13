@@ -5,7 +5,8 @@ import scrapy
 from scrapy.exceptions import CloseSpider
 
 from drugs.db import models
-from drugs.utils import base_transformer, utils
+from drugs.utils import utils
+from drugs.utils.base_transformer import Transformer
 
 REQUEST_QUERY_FP = 'drugs/src/oz/oz.query'
 SRC_URL_MASKED = '68747470733a2f2f7777772e7269676c612e72752f6772617068716c'
@@ -13,7 +14,7 @@ SRC_START_PAGE_NUMBER = 1
 SRC_APPROXIMATE_PAGE_LIMIT = 700
 
 
-class OzTransformer(base_transformer.Transformer):
+class OzTransformer(Transformer):
     def get_transformed_item(self):
         return self._oz_extract_data(
             self._item,
