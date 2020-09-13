@@ -17,7 +17,7 @@ SRC_APPROXIMATE_PAGE_LIMIT = 700
 class OzTransformer(Transformer):
     def get_transformed_item(self):
         return self._oz_extract_data(
-            self._item,
+            self.item,
             *map(self._get_param, ('id', 'name', 'sku', 'mnn_ru', 'promo_label')),
             *map(self._get_bool_param, (
                 ('is_active', 'active'),
