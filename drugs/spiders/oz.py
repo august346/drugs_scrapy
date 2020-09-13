@@ -9,6 +9,7 @@ from drugs.utils import base_transformer, utils
 
 REQUEST_QUERY_FP = 'drugs/src/oz/oz.query'
 SRC_URL_MASKED = '68747470733a2f2f7777772e7269676c612e72752f6772617068716c'
+SRC_START_PAGE_NUMBER = 1
 SRC_APPROXIMATE_PAGE_LIMIT = 700
 
 
@@ -129,7 +130,7 @@ class OzSpider(scrapy.Spider):
         return self._query_template
 
     def start_requests(self):
-        yield self._get_request(1)
+        yield self._get_request(SRC_START_PAGE_NUMBER)
 
     def parse(self, response, **kwargs):
         rsp_json = response.json()
@@ -189,4 +190,4 @@ class OzSpider(scrapy.Spider):
 
     @staticmethod
     def _get_item_id(item):
-        return item.get('id')
+        return item['id']
