@@ -145,7 +145,7 @@ class OzSpider(scrapy.Spider):
         ignore_ids = self._get_ignore_ids(items)
         self._add_items(items, ignore_ids)
 
-        return self._get_save_result(batch['page'], ignore_ids)
+        return self._get_save_result(batch['page'], ignore_ids, len(items))
 
     def _get_request(self, page_num):
         return scrapy.http.JsonRequest(
@@ -180,12 +180,13 @@ class OzSpider(scrapy.Spider):
         )
         self.db_session.commit()
 
-    def _get_save_result(self, page_num, ignore_ids):
+    @staticmethod
+    def _get_save_result(page_num, ignore_ids, items_length):
         return 'page: {}/~{}\tadded: {}/{}'.format(
             page_num,
             SRC_APPROXIMATE_PAGE_LIMIT,
-            self.page_size - len(ignore_ids),
-            self.page_size
+            items_length - len(ignore_ids),
+            items_length
         )
 
     @staticmethod
