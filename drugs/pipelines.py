@@ -13,8 +13,6 @@ class DrugsPipeline:
     def __init__(self, pg_url):
         self.pg_url = pg_url
 
-        self.sqlalchemy = None
-
     @classmethod
     def from_crawler(cls, crawler):
         pg_url = '{}://{}:{}@{}:{}/{}'.format(
@@ -30,11 +28,11 @@ class DrugsPipeline:
         return cls(pg_url=pg_url)
 
     def open_spider(self, spider):
-        self.sqlalchemy = db.SQLAlchemy(self.pg_url)
+        spider.db_session = db.SQLAlchemy(self.pg_url).session
 
     def close_spider(self, spider):
-        self.sqlalchemy.close()
+        spider.db_session.close()
 
     def process_item(self, item, spider):
-        to_log = spider.save(self.sqlalchemy.session, item)
+        to_log = spider.save(item)
         return to_log

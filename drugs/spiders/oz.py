@@ -2,12 +2,14 @@ import json
 from functools import reduce
 
 import scrapy
+from scrapy.exceptions import CloseSpider
 
 from drugs.db import models
 from drugs.utils import base_transformer, utils
 
 REQUEST_QUERY_FP = 'drugs/src/oz/oz.query'
 SRC_URL_MASKED = '68747470733a2f2f7777772e7269676c612e72752f6772617068716c'
+SRC_APPROXIMATE_PAGE_LIMIT = 700
 
 
 class OzTransformer(base_transformer.Transformer):
@@ -79,6 +81,7 @@ class OzTransformer(base_transformer.Transformer):
             attr_label, values = map(attr_struct.get, ('attribute_label', 'values'))
             values = tuple(value.get('value') for value in values)
             return attr_label, values
+
         return dict(map(_oz_extract_one, extracted))
 
     @staticmethod
@@ -105,13 +108,13 @@ class OzSpider(scrapy.Spider):
 
     download_delay = 0.5
 
-    def __init__(self, page_size=20, page_limit=655, *args, **kwargs):
+    def __init__(self, page_size=20, *args, **kwargs):
         super(OzSpider, self).__init__(*args, **kwargs)
         self.page_size = int(page_size)
-        self.page_limit = page_limit
 
         self._url = None
         self._query_template = None
+        self.db_session = None
 
     @property
     def url(self):
@@ -126,63 +129,64 @@ class OzSpider(scrapy.Spider):
         return self._query_template
 
     def start_requests(self):
-        for page_num in range(1, self.page_limit):
-            yield scrapy.http.JsonRequest(
-                url=self.url,
-                data=self.request_json(page_num),
-                cb_kwargs={'page': page_num},
-                callback=self.parse
-            )
-
-    def request_json(self, page_num):
-        return {
-            'query': self.query,
-            'variables': {
-                'page': page_num,
-                'size': self.page_size
-            }
-        }
+        yield self._get_request(1)
 
     def parse(self, response, **kwargs):
         rsp_json = response.json()
         batch = rsp_json['data']['productDetail']
+        self._close_spider_if_empty(batch['items'])
         batch.update(response.cb_kwargs)
-        return batch
+        yield batch
+        yield self._get_request(response.cb_kwargs['page'] + 1)
+
+    def save(self, batch):
+        items = batch['items']
+        ignore_ids = self._get_ignore_ids(items)
+        self._add_items(items, ignore_ids)
+
+        return self._get_save_result(batch['page'], ignore_ids)
+
+    def _get_request(self, page_num):
+        return scrapy.http.JsonRequest(
+            url=self.url,
+            data={
+                'query': self.query,
+                'variables': {
+                    'page': page_num,
+                    'size': self.page_size
+                }
+            },
+            cb_kwargs={'page': page_num},
+            callback=self.parse
+        )
 
     @staticmethod
-    def get_item_id(item):
-        return item.get('id')
+    def _close_spider_if_empty(items):
+        if not items:
+            raise CloseSpider('Empty items')
 
-    def save(self, session, batch):
-        items = batch['items']
-        ignore_ids = self.get_ignore_ids(items, session)
-        self.add_items(items, ignore_ids, session)
+    def _get_ignore_ids(self, items):
+        items_ids = tuple(self._get_item_id(i) for i in items)
+        already_in_filter = self.db_model.id.in_(items_ids)
+        already_in_drugs = self.db_session.query(self.db_model).filter(already_in_filter).all()
+        return tuple(oz_drug.id for oz_drug in already_in_drugs)
 
-        return self.get_save_result(batch['page'], ignore_ids)
-
-    def get_ignore_ids(self, items, session):
-        items_ids = tuple(self.get_item_id(i) for i in items)
-        return tuple(
-            oz_drug.id for oz_drug
-            in (
-                session.query(self.db_model)
-                .filter(self.db_model.id.in_(items_ids))
-                .all()
-            )
-        )
-
-    def add_items(self, items, ignore_ids, session):
-        session.add_all(
-            models.OzDrug(id=id_, data=item)
+    def _add_items(self, items, ignore_ids):
+        self.db_session.add_all(
+            self.db_model(id=id_, data=item)
             for item in items
-            if (id_ := self.get_item_id(item)) not in ignore_ids
+            if (id_ := self._get_item_id(item)) not in ignore_ids
         )
-        session.commit()
+        self.db_session.commit()
 
-    def get_save_result(self, page_num, ignore_ids):
-        return 'page: {}/{}\tadded: {}/{}'.format(
+    def _get_save_result(self, page_num, ignore_ids):
+        return 'page: {}/~{}\tadded: {}/{}'.format(
             page_num,
-            self.page_limit - 1,
+            SRC_APPROXIMATE_PAGE_LIMIT,
             self.page_size - len(ignore_ids),
             self.page_size
         )
+
+    @staticmethod
+    def _get_item_id(item):
+        return item.get('id')
