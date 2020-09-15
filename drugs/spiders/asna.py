@@ -29,12 +29,15 @@ class AsnaTransformer(Transformer):
                 result = li.css('.param-text a::text').get().strip()
             return result
 
+        if not (info_list := self.item.css('.infos')):
+            return {'info': None}
+
         return {
             'info': [
                 {
                     'label': li.css('.param::text').get().strip(),
                     'value': param_text(li)
-                } for li in self.item.css('.infos')[0].css('li')
+                } for li in info_list[0].css('li')
             ]
         }
 
