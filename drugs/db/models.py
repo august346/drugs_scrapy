@@ -16,7 +16,7 @@ class AsnaDrug(Base):
     __tablename__ = 'asna_drug'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(Text, unique=True)
+    title = Column(Text)
     info = Column(JSON)
     instructions = Column(JSON)
     price = Column(Float)
