@@ -54,12 +54,13 @@ class AsnaTransformer(Transformer):
         return {
             'instructions': [
                 {
-                    'label': div.css('h3::text').get().strip(),
+                    'label': title.strip(),
                     'value': '\n'.join(filter(
                         lambda x: x,
                         map(extract_tag_value, div.css('p, ul'))
                     ))
                 } for div in self.item.css('div.product-information__info__content__block')
+                if (title := div.css('h3::text').get()) is not None
             ]
         }
 
