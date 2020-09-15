@@ -47,8 +47,9 @@ class AsnaTransformer(Transformer):
                 return tag.css('::text').get(default='').strip()
 
             return '\t{}'.format('\n\t'.join(
-                li.css('::text').get().strip().replace('\n', ' ')
+                text.strip().replace('\n', ' ')
                 for li in tag.css('li')
+                if (text := li.css('::text').get()) is not None
             ))
 
         return {
