@@ -1,5 +1,4 @@
-from sqlalchemy import Column, Integer
-from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy import Column, Integer, Text, Float, Boolean, JSON
 from sqlalchemy.ext.declarative import declarative_base
 
 
@@ -11,3 +10,15 @@ class OzDrug(Base):
 
     id = Column(Integer, primary_key=True)
     data = Column(JSON)
+
+
+class AsnaDrug(Base):
+    __tablename__ = 'asna_drug'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(Text, unique=True)
+    info = Column(JSON)
+    instructions = Column(JSON)
+    price = Column(Float)
+    images = Column(JSON)
+    is_receipt = Column(Boolean)

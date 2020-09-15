@@ -1,5 +1,6 @@
 import scrapy
 
+from drugs.db import models
 from drugs.utils import utils
 from drugs.utils.base_transformer import Transformer
 
@@ -93,12 +94,17 @@ class AsnaSpider(scrapy.Spider):
 
     download_delay = 2
 
+    def __init__(self, *args, **kwargs):
+        super(AsnaSpider, self).__init__(*args, **kwargs)
+
+        self.db_session = None
+
     def parse(self, response, **kwargs):
-        pharma_group_links = response.xpath("//a[text() = 'Аллергия']/../../..//a")[:1]
+        pharma_group_links = response.xpath("//a[text() = 'Аллергия']/../../..//a")
         yield from response.follow_all(pharma_group_links, self.parse_group)
 
     def parse_group(self, response):
-        group_page_links = response.css('ul.pagination__pages a')[:1]
+        group_page_links = response.css('ul.pagination__pages a')
         yield from self.parse_page(response)
         yield from response.follow_all(group_page_links, self.parse_page)
 
@@ -111,5 +117,8 @@ class AsnaSpider(scrapy.Spider):
         return item
 
     def save(self, item):
-        # TODO
-        return item['title']
+        drug = models.AsnaDrug(**item)
+        self.db_session.add(drug)
+        self.db_session.commit()
+
+        return drug.title
