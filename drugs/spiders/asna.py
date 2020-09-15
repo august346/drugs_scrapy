@@ -61,7 +61,8 @@ class AsnaTransformer(Transformer):
         }
 
     def price(self):
-        return {'price': float(self.item.css('link[itemprop=price]::attr(content)').get().strip())}
+        price = self.item.css('link[itemprop=price]::attr(content)').get()
+        return {'price': float(price.strip()) if price else None}
 
     def images(self):
         def extract_images(img):
